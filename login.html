@@ -124,6 +124,10 @@ button:hover{
   cursor:pointer;
   font-weight:600;
 }
+
+#recaptcha-container{
+  margin-top:10px;
+}
 </style>
 </head>
 
@@ -154,10 +158,29 @@ button:hover{
     <div class="resend">Didn’t receive OTP? <span onclick="sendOTP()">Resend</span></div>
   </div>
 
+  <div id="recaptcha-container"></div>
 </div>
 
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
 <script>
-// 🔥 Auto redirect if already logged in
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyCJcWv3fzONQNqXberzc6QWIzJ0dAr3K0M",
+  authDomain: "services-2efa9.firebaseapp.com",
+  projectId: "services-2efa9",
+  storageBucket: "services-2efa9.appspot.com",
+  messagingSenderId: "864899080004",
+  appId: "1:864899080004:web:f2f3739413478e7e098111",
+  databaseURL: "https://services-2efa9-default-rtdb.firebaseio.com"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+
+// Auto redirect if already logged in
 const loggedStatus = localStorage.getItem("loggedIn");
 if(loggedStatus === "true"){
   window.location.href = "index.html";
@@ -165,41 +188,59 @@ if(loggedStatus === "true"){
   window.location.href = "admin.html";
 }
 
+// Send OTP
 function sendOTP(){
-  let phone = document.getElementById("phone").value.trim();
-
-  if(phone.length !== 10){
+  const phoneInput = document.getElementById("phone").value.trim();
+  if(phoneInput.length !== 10){
     alert("Enter a valid 10-digit Mobile Number");
     return;
   }
+  const fullPhone = "+91" + phoneInput; // country code
 
-  alert("OTP sent successfully! (Demo Mode — SMS not enabled)");
+  // Invisible reCAPTCHA
+  window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+    size: 'invisible'
+  });
 
-  // Show OTP section
-  document.getElementById("otpSection").style.display = "block";
+  auth.signInWithPhoneNumber(fullPhone, window.recaptchaVerifier)
+    .then((confirmationResult) => {
+      window.confirmationResult = confirmationResult;
+      alert("OTP sent successfully!");
+      document.getElementById("otpSection").style.display = "block";
+    })
+    .catch((error) => {
+      console.error("Error sending OTP:", error);
+      alert("Failed to send OTP. Try again.");
+    });
 }
 
+// Verify OTP
 function verifyOTP(){
-  let phone = document.getElementById("phone").value.trim();
-  let otp = document.getElementById("otp").value.trim();
-
+  const otp = document.getElementById("otp").value.trim();
   if(otp.length !== 6){
     alert("Enter a valid 6-digit OTP");
     return;
   }
 
-  alert("OTP Verified Successfully!");
+  window.confirmationResult.confirm(otp)
+    .then((result) => {
+      const user = result.user;
+      const phone = user.phoneNumber;
 
-  // 🔥 Admin login check
-  if(phone === "1234567890"){
-    localStorage.setItem("loggedIn","admin");
-    window.location.href = "admin.html";
-  } else {
-    // Normal user login
-    localStorage.setItem("loggedIn","true");
-    localStorage.setItem("phone", phone);
-    window.location.href = "index.html";
-  }
+      // Admin login check
+      if(phone === "+911234567890"){
+        localStorage.setItem("loggedIn","admin");
+        window.location.href = "admin.html";
+      } else {
+        localStorage.setItem("loggedIn","true");
+        localStorage.setItem("phone", phone);
+        window.location.href = "index.html";
+      }
+    })
+    .catch((error) => {
+      console.error("OTP verification failed:", error);
+      alert("Invalid OTP. Please try again.");
+    });
 }
 </script>
 
