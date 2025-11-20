@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard</title>
+<style>
+body { font-family: 'Poppins', sans-serif; margin:0; padding:20px; background:#f3f5f7; }
+.header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+h2 { text-align:center; margin:0; flex-grow:1; }
+.logout-btn { padding:6px 12px; background:#ff4d4d; color:white; border:none; border-radius:6px; cursor:pointer; transition:0.3s; }
+.logout-btn:hover { background:#ff1a1a; }
+.tabs { display:flex; justify-content:center; margin-bottom:20px; }
+.tab { padding:10px 20px; cursor:pointer; border-radius:8px; margin:0 5px; background:#ddd; transition:0.3s; }
+.tab.active { background:#1c1f27; color:white; }
+.card { background:white; padding:15px 20px; margin-bottom:15px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+.card h3 { margin:0 0 5px 0; }
+.card p { margin:3px 0; font-size:14px; color:#555; }
+.button { padding:6px 12px; cursor:pointer; border:none; border-radius:6px; margin-right:5px; font-size:14px; }
+.done-btn { background:#4CAF50; color:white; }
+.direction-btn { background:#1c1f27; color:white; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h2>Admin Dashboard</h2>
+  <button class="logout-btn" onclick="logout()">Logout</button>
+</div>
+
+<div class="tabs">
+  <div class="tab active" id="activeTab">Active</div>
+  <div class="tab" id="completedTab">Completed</div>
+</div>
+
+<div id="ordersContainer"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyCJcWv3fzONQNqXberzc6QWIzJ0dAr3K0M",
+  authDomain: "services-2efa9.firebaseapp.com",
+  databaseURL: "https://services-2efa9-default-rtdb.firebaseio.com",
+  projectId: "services-2efa9",
+  storageBucket: "services-2efa9.appspot.com",
+  messagingSenderId: "864899080004",
+  appId: "1:864899080004:web:f2f3739413478e7e098111"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+
+let currentTab = "active";
+
+// Tabs
+document.getElementById("activeTab").addEventListener("click", ()=>{
+  currentTab = "active";
+  document.getElementById("activeTab").classList.add("active");
+  document.getElementById("completedTab").classList.remove("active");
+  loadOrders();
+});
+
+document.getElementById("completedTab").addEventListener("click", ()=>{
+  currentTab = "completed";
+  document.getElementById("completedTab").classList.add("active");
+  document.getElementById("activeTab").classList.remove("active");
+  loadOrders();
+});
+
+// Load Orders
+function loadOrders(){
+  const container = document.getElementById("ordersContainer");
+  container.innerHTML = "";
+
+  db.ref("orders").once("value", snapshot=>{
+    snapshot.forEach(child=>{
+      const order = child.val();
+      const id = child.key;
+
+      if(order.status === currentTab){
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+          <h3>${order.service}</h3>
+          <p><b>Name:</b> ${order.name}</p>
+          <p><b>Phone:</b> ${order.phone}</p>
+          <p><b>Address:</b> ${order.address}</p>
+          <p><b>Date:</b> ${order.date}</p>
+          ${currentTab==="active" ? `
+            <button class="button done-btn" onclick="markDone('${id}')">Done</button>
+            <button class="button direction-btn" onclick="openDirections(${order.lat},${order.lng})">Directions</button>
+          ` : ""}
+        `;
+
+        container.appendChild(card);
+      }
+    });
+  });
+}
+
+// Mark as Done
+function markDone(id){
+  db.ref("orders/"+id).update({status:"completed"}).then(()=>{
+    alert("Order marked as completed!");
+    loadOrders();
+  });
+}
+
+// Open Directions
+function openDirections(lat, lng){
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  window.open(url, "_blank");
+}
+
+// Logout
+function logout(){
+  localStorage.removeItem("loggedIn");
+  localStorage.removeItem("phone");
+  window.location.href="login.html";
+}
+
+// Initial load
+loadOrders();
+</script>
+
+</body>
+</html>
