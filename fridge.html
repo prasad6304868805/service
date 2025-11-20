@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fridge Service Booking</title>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+<style>
+body{
+  margin:0;
+  padding:20px;
+  font-family:'Poppins', sans-serif;
+  background:#f3f5f7;
+}
+
+h2{
+  text-align:center;
+  margin-bottom:5px;
+}
+
+.desc{
+  text-align:center;
+  font-size:14px;
+  color:#555;
+  margin-bottom:20px;
+}
+
+.form-box{
+  background:#fff;
+  padding:20px;
+  border-radius:12px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.1);
+  max-width:500px;
+  margin:auto;
+}
+
+input, textarea, button {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+input, textarea {
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid #ccc;
+}
+
+button {
+  padding: 12px;
+  margin-top: 10px;
+  background:#1c1f27;
+  color:#fff;
+  border:none;
+  cursor:pointer;
+  transition:0.3s ease;
+}
+
+button:hover{
+  background:#333745;
+}
+
+.success{
+  text-align:center;
+  margin-top:20px;
+  color:green;
+  font-weight:600;
+  display:none;
+}
+
+.back-btn{
+  width:auto;
+  background:#888;
+  padding:10px 16px;
+  margin-bottom:15px;
+  display:inline-block;
+}
+
+.back-btn:hover{
+  background:#555;
+  color:white;
+}
+
+#map{
+  width:100%;
+  height:300px;
+  border-radius:12px;
+  margin-top:10px;
+}
+
+#map-search{
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #ccc;
+  font-size:15px;
+  margin-bottom:10px;
+}
+</style>
+</head>
+<body>
+
+<button class="back-btn" onclick="window.history.back()">← Back</button>
+
+<h2>Fridge Service Booking</h2>
+<div class="desc">Cooling issues, gas refill, temperature problems & more.</div>
+
+<div class="form-box">
+  <input type="text" id="name" placeholder="Full Name">
+  <input type="text" id="phone" placeholder="Phone Number">
+  <input type="text" id="address" placeholder="Full Address" readonly>
+  <textarea id="issue" rows="3" placeholder="Describe the Issue"></textarea>
+  <input type="text" id="time" placeholder="Preferred Time">
+
+  <!-- Search box above map -->
+  <input type="text" id="map-search" placeholder="Search your colony or landmark">
+
+  <!-- Map container -->
+  <div id="map"></div>
+
+  <button onclick="bookService()">Book Service</button>
+  <div id="successMsg" class="success">Your service is booked successfully!</div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyCqEZrtD-qmYRriE_44kONWr-hZcGleb3g",
+  authDomain: "services-2efa9.firebaseapp.com",
+  databaseURL: "https://services-2efa9-default-rtdb.firebaseio.com",
+  projectId: "services-2efa9",
+  storageBucket: "services-2efa9.firebasestorage.app",
+  messagingSenderId: "864899080004",
+  appId: "1:864899080004:web:f2f3739413478e7e098111",
+  measurementId: "G-3ESSBLPC05"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Initialize Leaflet Map
+let map = L.map('map').setView([20.5937, 78.9629], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+let marker = L.marker([20.5937, 78.9629], {draggable:true}).addTo(map);
+
+// Update address
+function updateAddress(lat, lng){
+  fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+    .then(res => res.json())
+    .then(data=>{
+      if(data.display_name){
+        document.getElementById("address").value = data.display_name;
+      } else {
+        document.getElementById("address").value = lat.toFixed(6)+", "+lng.toFixed(6);
+      }
+    }).catch(err=>console.error(err));
+}
+
+// Marker drag
+marker.on('dragend', function(e){
+  const pos = marker.getLatLng();
+  updateAddress(pos.lat, pos.lng);
+});
+
+// Map click
+map.on('click', function(e){
+  marker.setLatLng(e.latlng);
+  updateAddress(e.latlng.lat, e.latlng.lng);
+});
+
+// Geolocation
+if(navigator.geolocation){
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    map.setView([lat, lng], 15);
+    marker.setLatLng([lat, lng]);
+    updateAddress(lat, lng);
+  });
+}
+
+// Map search
+const searchInput = document.getElementById("map-search");
+let timeout = null;
+searchInput.addEventListener("input", function(){
+  clearTimeout(timeout);
+  const query = this.value;
+  if(query.length < 3) return;
+  timeout = setTimeout(()=>{
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
+      .then(res=>res.json())
+      .then(data=>{
+        if(data && data.length>0){
+          const place = data[0];
+          const lat = parseFloat(place.lat);
+          const lon = parseFloat(place.lon);
+          map.setView([lat, lon], 16);
+          marker.setLatLng([lat, lon]);
+          updateAddress(lat, lon);
+        }
+      }).catch(err=>console.error(err));
+  }, 500);
+});
+
+// Book Service Function
+function bookService(){
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const address = document.getElementById("address").value.trim();
+  const issue = document.getElementById("issue").value.trim();
+  const time = document.getElementById("time").value.trim();
+
+  if(!name || !phone || !address || !issue || !time){
+    alert("Please fill all fields!");
+    return;
+  }
+
+  const orderData = {
+    service: "Fridge Service",
+    name, phone, address, issue, time,
+    lat: marker.getLatLng().lat,
+    lng: marker.getLatLng().lng,
+    date: new Date().toLocaleString()
+  };
+
+  // Save to Firebase Realtime Database
+  db.ref('orders').push(orderData)
+    .then(() => {
+      document.getElementById("successMsg").style.display = "block";
+      document.getElementById("name").value = "";
+      document.getElementById("phone").value = "";
+      document.getElementById("issue").value = "";
+      document.getElementById("time").value = "";
+    })
+    .catch((error) => {
+      console.error("Error saving order:", error);
+      alert("Failed to book service. Check console.");
+    });
+}
+</script>
+
+</body>
+</html>

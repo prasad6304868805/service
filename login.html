@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login • Service App</title>
+
+<style>
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  font-family: "Poppins", sans-serif;
+}
+
+body{
+  height:100vh;
+  background: linear-gradient(135deg, #1c1f27, #111318);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:20px;
+}
+
+.login-box{
+  width:100%;
+  max-width:350px;
+  background:rgba(255,255,255,0.07);
+  padding:28px;
+  border-radius:18px;
+  backdrop-filter: blur(12px);
+  box-shadow:0 8px 25px rgba(0,0,0,0.35);
+  text-align:center;
+}
+
+.login-title{
+  font-size:26px;
+  font-weight:600;
+  color:white;
+  margin-bottom:4px;
+}
+
+.login-sub{
+  font-size:14px;
+  color:#cccccc;
+  margin-bottom:22px;
+}
+
+.input-box{
+  position:relative;
+  margin:16px auto;
+  width:100%;
+  max-width:300px;
+}
+
+.input-box input{
+  width:100%;
+  padding:10px 12px;
+  height:44px;
+  font-size:15px;
+  color:white;
+  background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.25);
+  border-radius:10px;
+  outline:none;
+  transition:0.2s;
+}
+
+.input-box input:focus{
+  border-color:#ffcb74;
+  background:rgba(255,255,255,0.18);
+}
+
+.input-box label{
+  position:absolute;
+  left:12px;
+  top:11px;
+  font-size:14px;
+  color:#bbbbbb;
+  pointer-events:none;
+  transition:0.2s;
+}
+
+input:focus + label,
+input:not(:placeholder-shown) + label{
+  top:-8px;
+  left:8px;
+  padding:0 6px;
+  background:#1b1e26;
+  font-size:12px;
+  color:#ffcb74;
+}
+
+button{
+  width:100%;
+  max-width:300px;
+  margin:20px auto 10px auto;
+  padding:12px;
+  font-size:16px;
+  background:#ffcb74;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  color:#1b1e26;
+  font-weight:600;
+  transition:0.25s;
+}
+
+button:hover{
+  background:#ffd892;
+}
+
+.signup-text{
+  margin-top:10px;
+  color:#bbbbbb;
+  font-size:14px;
+}
+
+.signup-text span{
+  color:#ffcb74;
+  cursor:pointer;
+  font-weight:600;
+  text-decoration:underline;
+}
+
+.success-msg{
+  text-align:center;
+  color:green;
+  font-weight:600;
+  margin-top:10px;
+  display:none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="login-box">
+  <div class="login-title">Welcome</div>
+  <div class="login-sub">Login using your phone number & password</div>
+
+  <div class="input-box">
+    <input id="phone" type="text" placeholder=" " maxlength="10">
+    <label>Phone Number</label>
+  </div>
+
+  <div class="input-box">
+    <input id="password" type="password" placeholder=" ">
+    <label>Password</label>
+  </div>
+
+  <button onclick="login()">Login</button>
+
+  <div class="signup-text">New User? <span onclick="redirectToSignup()">Sign Up</span></div>
+
+  <div id="msg" class="success-msg"></div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyCJcWv3fzONQNqXberzc6QWIzJ0dAr3K0M",
+  authDomain: "services-2efa9.firebaseapp.com",
+  projectId: "services-2efa9",
+  storageBucket: "services-2efa9.appspot.com",
+  messagingSenderId: "864899080004",
+  appId: "1:864899080004:web:f2f3739413478e7e098111",
+  databaseURL: "https://services-2efa9-default-rtdb.firebaseio.com"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// 🔥 Ensure admin exists
+db.ref("users/1234567890").once("value").then(snapshot=>{
+  if(!snapshot.exists()){
+    db.ref("users/1234567890").set({password:"1234567890"});
+  }
+});
+
+// Check if already logged in
+const status = localStorage.getItem("loggedIn");
+if(status === "true"){
+  window.location.href = "index.html";
+} else if(status === "admin"){
+  window.location.href = "admin.html";
+}
+
+// Login function
+function login(){
+  const phone = document.getElementById("phone").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  if(phone.length !== 10 || !password){
+    alert("Enter valid phone and password");
+    return;
+  }
+
+  db.ref("users/"+phone).once("value").then(snapshot=>{
+    if(snapshot.exists()){
+      const data = snapshot.val();
+      if(data.password === password){
+        if(phone === "1234567890"){ // admin login
+          localStorage.setItem("loggedIn","admin");
+          window.location.href = "admin.html";
+        } else {
+          localStorage.setItem("loggedIn","true");
+          localStorage.setItem("phone", phone);
+          window.location.href = "index.html";
+        }
+      } else {
+        alert("Incorrect password");
+      }
+    } else {
+      alert("User not found. Please Sign Up first");
+    }
+  });
+}
+
+// Redirect to signup page
+function redirectToSignup(){
+  window.location.href = "login1.html";
+}
+</script>
+
+</body>
+</html>

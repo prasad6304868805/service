@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Profile</title>
+<style>
+body{ font-family:Poppins; padding:20px; }
+</style>
+</head>
+
+<body>
+
+<h2>Your Profile</h2>
+<p>Phone: <span id="phone"></span></p>
+
+<button onclick="history.back()">← Back</button>
+
+<script>
+if(localStorage.getItem("loggedIn") !== "true"){
+  window.location.href = "login.html";
+}
+
+document.getElementById("phone").innerText = localStorage.getItem("phone");
+</script>
+
+</body>
+</html>
